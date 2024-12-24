@@ -56,9 +56,9 @@ func main (){
 	}
 
 	mux.Handle("/app/",apiCfg.middlewareMetricsInc(handler))
-	mux.HandleFunc("/healthz", apiCfg.handlerReadiness)
-	mux.HandleFunc("/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("/reset", apiCfg.handlerReset)
+	mux.HandleFunc("GET /healthz", apiCfg.handlerReadiness)
+	mux.HandleFunc("GET /metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /reset", apiCfg.handlerReset)
 
 	// Start the server
 	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)

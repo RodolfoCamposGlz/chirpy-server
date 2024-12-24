@@ -5,7 +5,6 @@ import (
 	"net/http"
 )
 
-
 func main (){
 	mux := http.NewServeMux()
 
@@ -15,6 +14,7 @@ func main (){
 		Handler: mux,     // Use the ServeMux as the handler
 	}
 
+	mux.Handle("/", http.FileServer(http.Dir(".")))
 	// Start the server
 	fmt.Println("Starting server on :8080")
 	if err := server.ListenAndServe(); err != nil {

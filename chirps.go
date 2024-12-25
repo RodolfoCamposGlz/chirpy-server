@@ -90,3 +90,22 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	}
 	respondWithJSON(w, http.StatusCreated, response)
 }
+
+func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.dbQueries.GetChirps(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
+		return
+	}
+	chirpJSONs := []ChirpJSON{}
+	for _, chirp := range chirps {
+		chirpJSONs = append(chirpJSONs, ChirpJSON{
+			ID: chirp.ID,
+			Body: chirp.Body,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			UserID: chirp.UserID,
+		})
+	}
+	respondWithJSON(w, http.StatusOK, chirpJSONs)
+}

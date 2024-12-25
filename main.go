@@ -25,9 +25,17 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Add("Content-Type", "text/html; charset=utf-8")
+	html := fmt.Sprintf(`
+	<html>
+		<body>
+			<h1>Welcome, Chirpy Admin</h1>
+			<p>Chirpy has been visited %d times!</p>
+		</body>
+	</html>
+	`, cfg.fileserverHits.Load())
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
+	w.Write([]byte(html))
 }
 
 func (cfg *apiConfig) handlerReadiness(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +49,8 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(http.StatusText(http.StatusOK)))
 }
+
+
 
 var handler http.Handler = http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
 
@@ -56,9 +66,10 @@ func main (){
 	}
 
 	mux.Handle("/app/",apiCfg.middlewareMetricsInc(handler))
-	mux.HandleFunc("GET /healthz", apiCfg.handlerReadiness)
-	mux.HandleFunc("GET /metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("POST /reset", apiCfg.handlerReset)
+	mux.HandleFunc("GET /api/healthz", apiCfg.handlerReadiness)
+	mux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 
 	// Start the server
 	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)

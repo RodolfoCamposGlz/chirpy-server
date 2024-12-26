@@ -27,6 +27,7 @@ type UserResponse struct {
 	Email     string    `json:"email"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
+	IsChirpyRed bool   `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +131,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: getUser.UpdatedAt.Time,
 		Token:        accessToken,
 		RefreshToken: refreshToken,
+		IsChirpyRed: getUser.IsChirpyRed.Bool,
 	}
 	respondWithJSON(w, http.StatusOK, response)
 }

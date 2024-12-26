@@ -43,7 +43,6 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, chirp *databas
 		}
 
 	}
-	fmt.Println(splitWords)
 	joinedWords := strings.Join(splitWords, " ")
 
 	return joinedWords, nil
@@ -146,4 +145,44 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 		UserID: chirp.UserID,
 	}
 	respondWithJSON(w, http.StatusOK, response)
+}
+
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	id, err := uuid.Parse(chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID")
+		return
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find JWT")
+		return
+	}
+	userId, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "Couldn't validate JWT")
+		return
+	}
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), id)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Not found")
+		return
+	}
+
+	//check if the user is the owner of the chirp
+	if userId != chirp.UserID {
+		respondWithError(w, http.StatusForbidden, "You are not the owner of this chirp")
+		return
+	}
+
+	err = cfg.dbQueries.DeleteChirp(r.Context(), id)
+	if err != nil {
+		log.Println("Error deleting chirp", err)
+		respondWithError(w, http.StatusNotFound, "Error deleting chirp")
+		return
+	}
+	respondWithJSON(w, http.StatusNoContent, map[string]string{"message": "Chirp deleted successfully"})
+
 }

@@ -133,3 +133,51 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, http.StatusOK, response)
 }
+
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find JWT")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid JWT")
+		return
+	}
+	type request struct {
+		Email string `json:"email"`
+		Password string `json:"password"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	req := request{}
+	err = decoder.Decode(&req)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error decoding JSON")
+		return
+	}
+	hashedPassword, err := auth.HashPassword(req.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error hashing password")
+		return
+	}
+	params := database.UpdateUserParams{
+		Email:          req.Email,
+		HashedPassword: hashedPassword,
+		ID:             userID,
+	}
+	updatedUser, err := cfg.dbQueries.UpdateUser(r.Context(), params)
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Error updating user")
+		return
+	}
+	response := UserResponse{
+		ID:        updatedUser.ID,
+		Email:     updatedUser.Email,
+		CreatedAt: updatedUser.CreatedAt.Time,
+		UpdatedAt: updatedUser.UpdatedAt.Time,
+	}
+	respondWithJSON(w, http.StatusOK, response)
+
+}

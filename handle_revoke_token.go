@@ -3,23 +3,18 @@ package main
 import (
 	"log"
 	"net/http"
-	"strings"
+
+	"github.com/RodolfoCamposGlz/internal/auth"
 )
 
 func (cfg *apiConfig) handlerRevokeToken(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		respondWithError(w, http.StatusUnauthorized, "Authorization header missing")
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find JWT")
 		return
 	}
 
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-	if tokenString == authHeader { // Ensure "Bearer " prefix exists
-		respondWithError(w, http.StatusUnauthorized, "Invalid Authorization format")
-		return
-	}
-
-	err := cfg.dbQueries.RevokeRefreshToken(r.Context(), tokenString)
+	err = cfg.dbQueries.RevokeRefreshToken(r.Context(), token)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error revoking refresh token")

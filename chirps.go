@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -106,47 +107,63 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	//get author_id from query params
+	// Get query parameters
 	authorId := r.URL.Query().Get("author_id")
-	authorUUID, err := uuid.Parse(authorId)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid author ID")
+	sortOrder := r.URL.Query().Get("sort")
+	
+	// Default to ascending order if not specified
+	if sortOrder == "" {
+		sortOrder = "asc"
+	}
+	
+	// Validate sort parameter
+	if sortOrder != "asc" && sortOrder != "desc" {
+		respondWithError(w, http.StatusBadRequest, "Invalid sort parameter. Must be 'asc' or 'desc'")
 		return
 	}
+
+	var chirps []database.Chirp
+	var err error
+
 	if authorId != "" {
-		chirps, err := cfg.dbQueries.GetChirpsByAuthorID(r.Context(), authorUUID)
+		authorUUID, err := uuid.Parse(authorId)
 		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
+			respondWithError(w, http.StatusBadRequest, "Invalid author ID")
 			return
 		}
-		chirpJSONs := []ChirpJSON{}
-		for _, chirp := range chirps {
-			chirpJSONs = append(chirpJSONs, ChirpJSON{
-				ID: chirp.ID,
-				Body: chirp.Body,
-				CreatedAt: chirp.CreatedAt,
-				UpdatedAt: chirp.UpdatedAt,
-				UserID: chirp.UserID,
-			})
-		}
-		respondWithJSON(w, http.StatusOK, chirpJSONs)
-		return
+		chirps, err = cfg.dbQueries.GetChirpsByAuthorID(r.Context(), authorUUID)
+	} else {
+		chirps, err = cfg.dbQueries.GetChirps(r.Context())
 	}
-	chirps, err := cfg.dbQueries.GetChirps(r.Context())
+
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error getting chirps")
 		return
 	}
-	chirpJSONs := []ChirpJSON{}
-	for _, chirp := range chirps {
-		chirpJSONs = append(chirpJSONs, ChirpJSON{
-			ID: chirp.ID,
-			Body: chirp.Body,
+
+	// Convert to JSON response format
+	chirpJSONs := make([]ChirpJSON, len(chirps))
+	for i, chirp := range chirps {
+		chirpJSONs[i] = ChirpJSON{
+			ID:        chirp.ID,
+			Body:      chirp.Body,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
-			UserID: chirp.UserID,
+			UserID:    chirp.UserID,
+		}
+	}
+
+	// Sort the chirps based on CreatedAt
+	if sortOrder == "desc" {
+		sort.Slice(chirpJSONs, func(i, j int) bool {
+			return chirpJSONs[i].CreatedAt.After(chirpJSONs[j].CreatedAt)
+		})
+	} else {
+		sort.Slice(chirpJSONs, func(i, j int) bool {
+			return chirpJSONs[i].CreatedAt.Before(chirpJSONs[j].CreatedAt)
 		})
 	}
+
 	respondWithJSON(w, http.StatusOK, chirpJSONs)
 }
 

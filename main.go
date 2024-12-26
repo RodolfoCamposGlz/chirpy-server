@@ -20,6 +20,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries *database.Queries
 	platform string
+	jwtSecret string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -59,6 +60,7 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	}
 	err := cfg.dbQueries.DeleteUsers(r.Context())
 	if err != nil {
+		log.Printf("Error: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error deleting users")
 		return
 	}
@@ -82,6 +84,7 @@ func main (){
 
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	jwtSecret := os.Getenv("JWT_SECRET")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)
@@ -90,6 +93,7 @@ func main (){
 	dbQueries := database.New(db)
 	apiCfg.dbQueries = dbQueries
 	apiCfg.platform = platform
+	apiCfg.jwtSecret = jwtSecret
 	mux := http.NewServeMux()
 
 	// Create a new http.Server
@@ -102,6 +106,8 @@ func main (){
 	mux.HandleFunc("GET /api/healthz", apiCfg.handlerReadiness)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevokeToken)
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirp)

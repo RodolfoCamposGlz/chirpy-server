@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RodolfoCamposGlz/internal/auth"
 	"github.com/RodolfoCamposGlz/internal/database"
 	"github.com/google/uuid"
 )
@@ -50,6 +51,21 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, chirp *databas
 
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
+
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find JWT")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate JWT")
+		return
+	}
+
     chirpRequest := ChirpJSON{}
     if err := json.NewDecoder(r.Body).Decode(&chirpRequest); err != nil {
         log.Printf("Error decoding JSON: %v", err)
@@ -60,7 +76,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
     // Map ChirpJSON to Chirp structure for validation
     chirp := database.Chirp{
         Body:   chirpRequest.Body,
-        UserID: chirpRequest.UserID,
+        UserID: userID,
     }
 
     // Validate the chirp's body
@@ -74,7 +90,6 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		Body: cleanedBody,
 		UserID: chirp.UserID,
 	}
-
 	newChirp, err := cfg.dbQueries.CreateChirp(r.Context(), params)
 	if err != nil {
 		log.Println("Error creating chirp", err)

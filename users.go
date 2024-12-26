@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -24,6 +25,8 @@ type UserResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -85,11 +88,48 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expirationTime := time.Hour
+
+	accessToken, err := auth.MakeJWT(
+		getUser.ID,
+		cfg.jwtSecret,
+		expirationTime,
+	)
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create access JWT")
+		return
+	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create refresh JWT")
+		return
+	}
+
+
+	refreshTokenParams := database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    getUser.ID,
+		ExpiresAt: time.Now().Add(60 * 24 * time.Hour), // 60 days
+		RevokedAt: sql.NullTime{},
+	}
+
+	_, err = cfg.dbQueries.CreateRefreshToken(r.Context(), refreshTokenParams)
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't store refresh token")
+		return
+	}
+
 	response := UserResponse{
 		ID:        getUser.ID,
 		Email:     getUser.Email,
 		CreatedAt: getUser.CreatedAt.Time,
 		UpdatedAt: getUser.UpdatedAt.Time,
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	}
 	respondWithJSON(w, http.StatusOK, response)
 }

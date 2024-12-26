@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -106,4 +107,22 @@ func MakeRefreshToken() (string, error) {
 		return "", fmt.Errorf("error generating random bytes: %w", err)
 	}
 	return hex.EncodeToString(randomBytes), nil
+}
+
+
+func GetAPIKey(headers http.Header, polkaKey string) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", ErrNoAuthHeaderIncluded
+	}
+	splitAuth := strings.Split(authHeader, " ")
+	if len(splitAuth) < 2 || splitAuth[0] != "ApiKey" {
+		return "", errors.New("malformed authorization header")
+	}
+	apiKey := splitAuth[1]
+	if apiKey!= polkaKey {
+		return "", errors.New("invalid API key")
+	}
+	log.Println("API key is valid")
+	return apiKey, nil
 }

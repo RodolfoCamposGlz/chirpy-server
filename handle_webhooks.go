@@ -6,11 +6,17 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/RodolfoCamposGlz/internal/auth"
 	"github.com/RodolfoCamposGlz/internal/database"
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlePolkaWebhooks(w http.ResponseWriter, r *http.Request) {
+	_, err := auth.GetAPIKey(r.Header, cfg.polkaKey)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid API key")
+		return
+	}
 	type requestBody struct {
 		Event string `json:"event"`
 		Data  struct {
@@ -20,7 +26,7 @@ func (cfg *apiConfig) handlePolkaWebhooks(w http.ResponseWriter, r *http.Request
 	decoder := json.NewDecoder(r.Body)
 
 	var req requestBody
-	err := decoder.Decode(&req)
+	err = decoder.Decode(&req)
 	if err != nil {
 		log.Println("Error decoding request body", err)
 		respondWithError(w, http.StatusBadRequest, "Error decoding request body")

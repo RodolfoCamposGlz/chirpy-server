@@ -82,7 +82,6 @@ func main (){
 
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
-	fmt.Println("DB_URL: ", dbURL)
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)
@@ -102,6 +101,7 @@ func main (){
 	mux.Handle("/app/",apiCfg.middlewareMetricsInc(handler))
 	mux.HandleFunc("GET /api/healthz", apiCfg.handlerReadiness)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirp)

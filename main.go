@@ -13,7 +13,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const port = "8080"
 const filepathRoot = "."
 
 type apiConfig struct {
@@ -87,6 +86,10 @@ func main (){
 	platform := os.Getenv("PLATFORM")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	polkaKey := os.Getenv("POLKA_KEY")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)

@@ -104,7 +104,10 @@ func main (){
 		Addr:  ":" + port, // Bind to port 8080
 		Handler: mux,     // Use the ServeMux as the handler
 	}
-
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello World"))
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.Handle("/app/",apiCfg.middlewareMetricsInc(handler))
 	mux.HandleFunc("GET /api/healthz", apiCfg.handlerReadiness)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
